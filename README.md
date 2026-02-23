@@ -442,14 +442,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Support
 
-- **Documentation**: [https://docs.kair0s.com](https://docs.kair0s.com)
-- **Issues**: [GitHub Issues](https://github.com/adamguerin/kair0s/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/adamguerin/kair0s/discussions)
-- **Community**: [Discord Server](https://discord.gg/kair0s)
+- **Issues**: [GitHub Issues](https://github.com/adam-guerin/kair0s/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/adam-guerin/kair0s/discussions)
 
 ---
 
 <div align="center">
-  <p>Built with ❤️ by Adam Guerin</p>
+  <p>Built with ❤️ by the Kair0s Team - Nexla</p>
   <p><strong>Production-Ready • Enterprise-Grade • Ultra-Scalable</strong></p>
 </div>
