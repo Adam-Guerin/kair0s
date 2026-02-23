@@ -1,0 +1,163 @@
+{
+  "name": "Kair0s Plugin Runtime",
+  "version": "1.0.0",
+  "description": "Unified plugin runtime that transforms Kair0s into an extensible platform with OpenClaw as the core engine",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "keywords": ["kair0s", "plugin", "runtime", "platform", "extensible"],
+  "author": "Kair0s Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kair0s/plugin-runtime"
+  },
+  "scripts": {
+    "build": "tsc && webpack --mode production",
+    "dev": "tsc && webpack --mode development --watch",
+    "test": "jest",
+    "lint": "eslint src --ext .ts,.tsx",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "lucide-react": "^0.263.1",
+    "clsx": "^1.2.1",
+    "tailwind-merge": "^1.14.0",
+    "uuid": "^9.0.0",
+    "eventemitter3": "^4.0.7"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.0.0",
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react": "^7.32.0"
+  },
+  "peerDependencies": {
+    "openclaw": ">=1.0.0"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "kair0s": {
+    "pluginType": "runtime",
+    "compatibility": {
+      "openclaw": ">=1.0.0"
+    },
+    "runtime": {
+      "version": "1.0.0",
+      "apis": [
+        "plugin.register",
+        "plugin.unregister",
+        "plugin.execute",
+        "plugin.getMetadata",
+        "plugin.list",
+        "engine.execute",
+        "engine.getProvider",
+        "engine.setProvider",
+        "engine.getMetrics",
+        "engine.startSession",
+        "engine.endSession"
+      ],
+      "hooks": [
+        "beforePluginLoad",
+        "afterPluginLoad",
+        "beforePluginExecute",
+        "afterPluginExecute",
+        "beforeEngineExecute",
+        "afterEngineExecute"
+      ]
+    },
+    "plugins": {
+      "autoLoad": true,
+      "maxConcurrent": 10,
+      "timeout": 30000,
+      "retryAttempts": 3,
+      "cache": {
+        "enabled": true,
+        "ttl": 300000,
+        "maxSize": 100
+      }
+    },
+    "security": {
+      "sandbox": true,
+      "allowedDomains": ["kair0s.com", "plugins.kair0s.com"],
+      "requireSignature": false,
+      "isolation": true
+    },
+    "ui": {
+      "theme": "kair0s",
+      "components": ["CommandBar", "PluginList", "PluginCard"],
+      "layouts": ["sidebar", "modal", "overlay"]
+    },
+    "monitoring": {
+      "enabled": true,
+      "metrics": ["performance", "usage", "errors", "security"],
+      "alerts": ["pluginFailure", "engineError", "securityViolation"],
+      "retention": {
+        "logs": "7d",
+        "metrics": "30d",
+        "errors": "90d"
+      }
+    }
+  },
+  "manifest": {
+    "name": "Kair0s Plugin Runtime",
+    "short_name": "Kair0s Runtime",
+    "description": "Extensible plugin platform for Kair0s with OpenClaw engine integration",
+    "version": "1.0.0",
+    "author": "Kair0s Team",
+    "license": "MIT",
+    "homepage": "https://kair0s.com",
+    "permissions": [
+      "plugin:read",
+      "plugin:write",
+      "engine:execute",
+      "engine:configure",
+      "network:request",
+      "storage:read",
+      "storage:write",
+      "system:metrics"
+    ],
+    "icons": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    },
+    "capabilities": [
+      "plugin-api",
+      "engine-api",
+      "ui-components",
+      "custom-hooks",
+      "network-access",
+      "file-system",
+      "system-integration"
+    ],
+    "categories": [
+      "ai-assistant",
+      "productivity",
+      "integration",
+      "automation",
+      "analytics",
+      "communication"
+    ],
+    "compatibility": {
+      "minKair0sVersion": "1.0.0",
+      "maxOpenclawVersion": "2.0.0",
+      "platforms": ["web", "desktop", "mobile"]
+    }
+  }
+}
