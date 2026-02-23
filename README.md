@@ -443,13 +443,13 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - **Documentation**: [https://docs.kair0s.com](https://docs.kair0s.com)
-- **Issues**: [GitHub Issues](https://github.com/your-org/kair0s/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/kair0s/discussions)
+- **Issues**: [GitHub Issues](https://github.com/adamguerin/kair0s/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/adamguerin/kair0s/discussions)
 - **Community**: [Discord Server](https://discord.gg/kair0s)
 
 ---
 
 <div align="center">
-  <p>Built with ❤️ by the Kair0s Team - Nexla</p>
+  <p>Built with ❤️ by Adam Guerin</p>
   <p><strong>Production-Ready • Enterprise-Grade • Ultra-Scalable</strong></p>
 </div>
