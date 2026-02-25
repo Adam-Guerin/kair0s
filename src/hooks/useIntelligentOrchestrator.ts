@@ -1,8 +1,8 @@
 /**
  * React Hook for Intelligent Orchestrator
  * 
- * Provides invisible orchestration where users only set objectives
- * and the system automatically handles provider/model selection.
+ * Provides transparent, consented orchestration where users define objectives
+ * and the system handles provider/model selection with observable decisions.
  */
 
 import { useState, useEffect, useCallback } from 'react';

@@ -136,9 +136,9 @@ const CONTEXTUAL_TIPS: Tip[] = [
   
   // Orchestrator Tips
   {
-    id: 'orchestrator_invisible',
-    title: 'Orchestrateur Invisible',
-    description: 'Kair0s choisit automatiquement le meilleur modèle AI. Pas de configuration manuelle requise.',
+    id: 'orchestrator_transparent',
+    title: 'Orchestrateur Transparent',
+    description: 'Kair0s choisit automatiquement le meilleur modèle AI et expose les raisons de ce choix.',
     type: 'feature_discovery',
     category: 'orchestrator',
     priority: 'high',

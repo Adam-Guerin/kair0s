@@ -8,17 +8,14 @@
 
 import { EventEmitter } from 'events';
 import {
-  TaskSession,
-  Artifact,
-  KPIEvent,
-  getArtifactManager,
-  type ArtifactManager,
-} from './artifact-manager.js';
-import {
   getEngineManager,
-  type ProviderConfig,
-  type RoutingDecision,
 } from '../config/engine-manager.js';
+import { type ProviderConfig } from '../config/engine-config.js';
+import {
+  invokeOpenClaw,
+  type OpenClawRequestDTO,
+  type OpenClawResponseDTO,
+} from '../gateway/openclawGateway.js';
 
 export interface UserObjective {
   id: string;
@@ -128,10 +125,17 @@ export interface OrchestrationDecision {
   }>;
 }
 
+interface EngineExecutionResult {
+  success: boolean;
+  latency: number;
+  cost: number;
+  quality: number;
+  response: OpenClawResponseDTO;
+}
+
 export class IntelligentOrchestrator extends EventEmitter {
   private config: OrchestrationConfig;
   private engineManager: ReturnType<typeof getEngineManager>;
-  private artifactManager: ArtifactManager;
   
   // Performance tracking
   private performanceHistory: Map<string, {
@@ -190,8 +194,6 @@ export class IntelligentOrchestrator extends EventEmitter {
     };
     
     this.engineManager = getEngineManager();
-    this.artifactManager = getArtifactManager();
-    
     this.initializePerformanceTracking();
   }
 
@@ -224,7 +226,7 @@ export class IntelligentOrchestrator extends EventEmitter {
       // Emit decision event
       this.emit('orchestration', { objective, decision, result });
       
-      return result;
+      return decision;
       
     } catch (error) {
       console.error('Orchestration failed:', error);
@@ -234,7 +236,10 @@ export class IntelligentOrchestrator extends EventEmitter {
         category: 'technical',
         type: 'orchestration_error',
         severity: 'error',
-        data: { error: error.message, objectiveId: objective.id },
+        data: {
+          error: error instanceof Error ? error.message : String(error),
+          objectiveId: objective.id,
+        },
       });
       
       throw error;
@@ -274,13 +279,13 @@ export class IntelligentOrchestrator extends EventEmitter {
       objectiveId: objective.id,
       selectedProvider: selected.provider,
       selectedModel: selected.model,
-      fallbackChain: fallbackChain.map(p => p.provider),
+      fallbackChain,
       reasoning,
       confidence,
       estimatedMetrics,
       riskFactors,
       alternatives: scoredProviders.slice(1, 5).map(p => ({
-        provider: p.provider,
+        provider: p,
         model: p.model,
         score: p.score,
         reasoning: p.reasoning,
@@ -291,7 +296,7 @@ export class IntelligentOrchestrator extends EventEmitter {
   private async executeDecision(
     decision: OrchestrationDecision, 
     objective: UserObjective
-  ): Promise<{ success: boolean; latency: number; cost: number; quality: number }> {
+  ): Promise<EngineExecutionResult> {
     
     const startTime = Date.now();
     
@@ -302,23 +307,13 @@ export class IntelligentOrchestrator extends EventEmitter {
         requiresImages: objective.requirements.multimodal,
         maxLatency: objective.maxLatency,
       });
-      
-      // Simulate execution (in real implementation, this would be the actual request)
-      const executionTime = this.estimateExecutionTime(decision, objective);
-      const cost = this.estimateExecutionCost(decision, objective);
-      const quality = this.estimateExecutionQuality(decision, objective);
-      
-      // Simulate processing time
-      await new Promise(resolve => setTimeout(resolve, executionTime));
-      
-      const actualLatency = Date.now() - startTime;
-      
-      return {
-        success: true,
-        latency: actualLatency,
-        cost,
-        quality,
-      };
+
+      const useMockEngine = this.readBooleanEnv('USE_MOCK_ENGINE', false);
+      const execution = useMockEngine
+        ? await this.executeMockEngine(decision, objective, startTime)
+        : await this.executeRealEngine(decision, objective, startTime);
+
+      return execution;
       
     } catch (error) {
       // Handle fallback if enabled
@@ -334,7 +329,7 @@ export class IntelligentOrchestrator extends EventEmitter {
     decision: OrchestrationDecision, 
     objective: UserObjective, 
     attempt: number
-  ): Promise<{ success: boolean; latency: number; cost: number; quality: number }> {
+  ): Promise<EngineExecutionResult> {
     
     if (attempt >= this.config.fallback.maxAttempts) {
       throw new Error('All fallback attempts exhausted');
@@ -342,11 +337,10 @@ export class IntelligentOrchestrator extends EventEmitter {
     
     try {
       // Try next provider in fallback chain
-      const nextProviderId = decision.fallbackChain[attempt];
-      const nextProvider = this.engineManager.getProvider(nextProviderId);
+      const nextProvider = decision.fallbackChain[attempt];
       
       if (!nextProvider) {
-        throw new Error(`Fallback provider ${nextProviderId} not found`);
+        throw new Error(`Fallback provider at attempt ${attempt} not found`);
       }
       
       // Configure with fallback provider
@@ -355,19 +349,17 @@ export class IntelligentOrchestrator extends EventEmitter {
         requiresImages: objective.requirements.multimodal,
         maxLatency: objective.maxLatency,
       });
-      
-      const executionTime = this.estimateExecutionTime({ selectedProvider: nextProvider, selectedModel: nextProvider.model }, objective);
-      const cost = this.estimateExecutionCost({ selectedProvider: nextProvider, selectedModel: nextProvider.model }, objective);
-      const quality = this.estimateExecutionQuality({ selectedProvider: nextProvider, selectedModel: nextProvider.model }, objective);
-      
-      await new Promise(resolve => setTimeout(resolve, executionTime));
-      
-      return {
-        success: true,
-        latency: executionTime,
-        cost,
-        quality,
+
+      const fallbackDecision: OrchestrationDecision = {
+        ...decision,
+        selectedProvider: nextProvider,
+        selectedModel: nextProvider.model,
       };
+
+      const useMockEngine = this.readBooleanEnv('USE_MOCK_ENGINE', false);
+      return useMockEngine
+        ? await this.executeMockEngine(fallbackDecision, objective, Date.now())
+        : await this.executeRealEngine(fallbackDecision, objective, Date.now());
       
     } catch (error) {
       // Try next fallback
@@ -560,10 +552,10 @@ export class IntelligentOrchestrator extends EventEmitter {
   ): ProviderConfig[] {
     
     const fallbackProviders = alternatives
-      .filter(p => p.provider.id !== selected.provider.id)
+      .filter(p => p.id !== selected.provider.id)
       .slice(0, this.config.fallback.maxAttempts - 1);
     
-    return fallbackProviders.map(p => p.provider);
+    return fallbackProviders;
   }
 
   private generateReasoning(
@@ -603,8 +595,8 @@ export class IntelligentOrchestrator extends EventEmitter {
     
     // Adjust based on requirements match
     const requirements = objective.requirements;
-    if (requirements.multimodal && selected.capabilities.images) confidence += 0.05;
-    if (requirements.streaming && selected.capabilities.streaming) confidence += 0.05;
+    if (requirements.multimodal && selected.provider.capabilities.images) confidence += 0.05;
+    if (requirements.streaming && selected.provider.capabilities.streaming) confidence += 0.05;
     
     return Math.min(confidence, 1.0);
   }
@@ -615,10 +607,10 @@ export class IntelligentOrchestrator extends EventEmitter {
   ): { latency: number; cost: number; quality: number; reliability: number } {
     
     return {
-      latency: selected.performance?.avgLatency || 1000,
-      cost: selected.cost?.inputTokenPrice || 0.01,
-      quality: selected.performance?.reliability || 0.9,
-      reliability: selected.performance?.reliability || 0.9,
+      latency: selected.provider.performance?.avgLatency || 1000,
+      cost: selected.provider.cost?.inputTokenPrice || 0.01,
+      quality: selected.provider.performance?.reliability || 0.9,
+      reliability: selected.provider.performance?.reliability || 0.9,
     };
   }
 
@@ -681,6 +673,152 @@ export class IntelligentOrchestrator extends EventEmitter {
     return Math.max(0.5, baseQuality - complexityPenalty);
   }
 
+  private async executeRealEngine(
+    decision: OrchestrationDecision,
+    objective: UserObjective,
+    startedAt: number
+  ): Promise<EngineExecutionResult> {
+    const request = this.buildOpenClawRequest(decision, objective);
+    const response = await invokeOpenClaw(request, {
+      timeoutMs: objective.maxLatency ?? undefined,
+      retries: this.config.fallback.maxAttempts > 1 ? 1 : 0,
+      retryDelayMs: this.config.fallback.retryDelay,
+      baseUrl: this.readStringEnv('OPENCLAW_BASE_URL', 'http://127.0.0.1:18789/api/v1'),
+      endpointPath: this.readStringEnv('OPENCLAW_ENDPOINT_PATH', '/process'),
+      transport: this.readBooleanEnv('OPENCLAW_USE_IPC', false) ? 'ipc' : 'http',
+    });
+
+    const latency = response.usage?.latencyMs ?? Date.now() - startedAt;
+    const cost = response.usage?.costUsd ?? this.estimateExecutionCost(
+      { selectedProvider: decision.selectedProvider, model: decision.selectedModel },
+      objective
+    );
+    const quality = this.estimateQualityFromResponse(response, objective);
+
+    return {
+      success: true,
+      latency,
+      cost,
+      quality,
+      response,
+    };
+  }
+
+  private async executeMockEngine(
+    decision: OrchestrationDecision,
+    objective: UserObjective,
+    startedAt: number
+  ): Promise<EngineExecutionResult> {
+    const executionTime = this.estimateExecutionTime(
+      { selectedProvider: decision.selectedProvider, model: decision.selectedModel },
+      objective
+    );
+    const cost = this.estimateExecutionCost(
+      { selectedProvider: decision.selectedProvider, model: decision.selectedModel },
+      objective
+    );
+    const quality = this.estimateExecutionQuality(
+      { selectedProvider: decision.selectedProvider, model: decision.selectedModel },
+      objective
+    );
+
+    await new Promise(resolve => setTimeout(resolve, executionTime));
+    const response: OpenClawResponseDTO = {
+      answer: {
+        text: `Mocked answer for objective "${objective.name}"`,
+        provider: decision.selectedProvider.id,
+        model: decision.selectedModel,
+      },
+      actions: [],
+      artifacts: [],
+      citations: [],
+      usage: {
+        latencyMs: Date.now() - startedAt,
+        costUsd: cost,
+      },
+      raw: { mock: true },
+    };
+
+    return {
+      success: true,
+      latency: response.usage?.latencyMs ?? executionTime,
+      cost,
+      quality,
+      response,
+    };
+  }
+
+  private buildOpenClawRequest(
+    decision: OrchestrationDecision,
+    objective: UserObjective
+  ): OpenClawRequestDTO {
+    return {
+      requestId: `oc_${objective.id}_${Date.now()}`,
+      input: {
+        text: `${objective.name}\n\n${objective.description}`.trim(),
+        type: objective.context.domain === 'meeting' ? 'transcript' : 'text',
+        language: 'fr',
+      },
+      context: {
+        objectiveId: objective.id,
+        objectiveName: objective.name,
+        domain: objective.context.domain,
+        urgency: objective.context.urgency,
+        stakeholders: objective.context.stakeholders,
+        compliance: objective.context.compliance,
+        metadata: {
+          priority: objective.priority,
+          minQuality: objective.minQuality ?? null,
+        },
+      },
+      capabilities: {
+        streaming: Boolean(objective.requirements.streaming),
+        functionCalling: Boolean(objective.requirements.functionCalling),
+        multimodal: Boolean(objective.requirements.multimodal),
+        longContext: Boolean(objective.requirements.longContext),
+        highAccuracy: Boolean(objective.requirements.highAccuracy),
+      },
+      engine: {
+        providerId: decision.selectedProvider.id,
+        model: decision.selectedModel,
+        fallbackProviderIds: decision.fallbackChain.map(p => p.id),
+      },
+    };
+  }
+
+  private estimateQualityFromResponse(
+    response: OpenClawResponseDTO,
+    objective: UserObjective
+  ): number {
+    // Minimal heuristic until OpenClaw returns an explicit quality/confidence score.
+    const answerLength = response.answer.text.trim().length;
+    const base = answerLength > 0 ? 0.8 : 0.6;
+    const citationBonus = response.citations.length > 0 ? 0.05 : 0;
+    const actionBonus = response.actions.length > 0 ? 0.05 : 0;
+    const requiredBoost = objective.requirements.highAccuracy ? 0.05 : 0;
+    return Math.min(1, base + citationBonus + actionBonus + requiredBoost);
+  }
+
+  private readBooleanEnv(name: string, defaultValue: boolean): boolean {
+    const raw = this.readStringEnv(name, '');
+    if (!raw) return defaultValue;
+    return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase());
+  }
+
+  private readStringEnv(name: string, defaultValue: string): string {
+    const viteEnv = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env;
+    const fromVite = viteEnv?.[name];
+    if (fromVite && fromVite.trim()) return fromVite;
+
+    const nodeEnvValue = (globalThis as { process?: { env?: Record<string, string | undefined> } })
+      .process?.env?.[name];
+    if (nodeEnvValue && nodeEnvValue.trim()) {
+      return nodeEnvValue;
+    }
+
+    return defaultValue;
+  }
+
   private identifyRiskFactors(
     selected: { provider: ProviderConfig; model: string },
     objective: UserObjective
@@ -689,22 +827,22 @@ export class IntelligentOrchestrator extends EventEmitter {
     const risks: string[] = [];
     
     // Check latency risk
-    if (objective.maxLatency && selected.performance?.avgLatency && selected.performance.avgLatency > objective.maxLatency) {
-      risks.push(`High latency risk: ${selected.performance.avgLatency}ms > ${objective.maxLatency}ms`);
+    if (objective.maxLatency && selected.provider.performance?.avgLatency && selected.provider.performance.avgLatency > objective.maxLatency) {
+      risks.push(`High latency risk: ${selected.provider.performance.avgLatency}ms > ${objective.maxLatency}ms`);
     }
     
     // Check cost risk
-    if (objective.maxCost && selected.cost?.inputTokenPrice && selected.cost.inputTokenPrice > objective.maxCost) {
-      risks.push(`High cost risk: $${selected.cost.inputTokenPrice} > $${objective.maxCost}`);
+    if (objective.maxCost && selected.provider.cost?.inputTokenPrice && selected.provider.cost.inputTokenPrice > objective.maxCost) {
+      risks.push(`High cost risk: $${selected.provider.cost.inputTokenPrice} > $${objective.maxCost}`);
     }
     
     // Check reliability risk
-    if (selected.performance?.reliability && selected.performance.reliability < 0.8) {
-      risks.push(`Low reliability risk: ${selected.performance.reliability}`);
+    if (selected.provider.performance?.reliability && selected.provider.performance.reliability < 0.8) {
+      risks.push(`Low reliability risk: ${selected.provider.performance.reliability}`);
     }
     
     // Check context mismatch
-    if (objective.requirements.multimodal && !selected.capabilities.images) {
+    if (objective.requirements.multimodal && !selected.provider.capabilities.images) {
       risks.push('Missing multimodal capability');
     }
     

@@ -5,7 +5,7 @@
  * their status, and provides installation/management capabilities.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   Package, 
   Download, 
@@ -14,7 +14,6 @@ import {
   Pause, 
   Square, 
   Trash2, 
-  Plus, 
   Search,
   AlertCircle,
   CheckCircle,
@@ -24,7 +23,6 @@ import {
   Zap
 } from 'lucide-react';
 import { cn } from '../utils/cn.js';
-import { colors, spacing, borderRadius, shadows, animations } from '../theme/index.js';
 
 // ============================================================================
 // TYPES
@@ -69,7 +67,6 @@ interface PluginCategory {
   id: string;
   name: string;
   description: string;
-  icon: React.ReactNode;
   count: number;
 }
 
@@ -351,6 +348,7 @@ export const PluginList: React.FC<PluginListProps> = ({
   };
 
   return (
+    <>
     <div className={cn("bg-white rounded-lg shadow-lg border border-gray-200 w-full max-w-6xl", className)}>
       {/* Header */}
       <div className="flex items-center justify-between p-6 border-b border-gray-100">
@@ -443,7 +441,7 @@ export const PluginList: React.FC<PluginListProps> = ({
                         alt={plugin.name}
                         className="w-8 h-8"
                         onError={(e) => {
-                          e.target.style.display = 'none';
+                          e.currentTarget.style.display = 'none';
                         }}
                       />
                     ) : (
@@ -701,6 +699,7 @@ export const PluginList: React.FC<PluginListProps> = ({
         </div>
       </div>
     )}
+    </>
   );
 };
 

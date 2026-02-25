@@ -22,7 +22,6 @@ import {
   Sparkles
 } from 'lucide-react';
 import { cn } from '../utils/cn.js';
-import { colors, spacing, borderRadius, shadows, animations } from '../theme/index.js';
 
 // ============================================================================
 // TYPES
@@ -69,7 +68,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
     tips: [
       'Utilisez ⌘K pour accéder rapidement à toutes les fonctionnalités',
       'Les presets métier adaptent automatiquement l\'assistant à vos besoins',
-      'L\'orchestrateur invisible sélectionne le meilleur modèle AI automatiquement'
+      'L\'orchestrateur transparent vous montre comment le meilleur modèle AI est sélectionné'
     ]
   },
   {
@@ -139,7 +138,7 @@ const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: 'orchestrator_discovery',
-    title: 'Orchestrateur Invisible',
+    title: 'Orchestrateur Transparent',
     description: 'L\'IA choisit automatiquement le meilleur modèle et provider selon vos objectifs.',
     type: 'feature_discovery',
     icon: <Settings className="w-8 h-8 text-orange-600" />,
@@ -218,7 +217,10 @@ export const OnboardingGuide: React.FC<OnboardingGuideProps> = ({
   showProgress = true,
   autoStart = true,
 }) => {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(() => {
+    const index = ONBOARDING_STEPS.findIndex(step => step.id === initialStep);
+    return index === -1 ? 0 : index;
+  });
   const [isVisible, setIsVisible] = useState(autoStart);
   const [completedSteps, setCompletedSteps] = useState<Set<string>>(new Set());
 
@@ -344,8 +346,7 @@ export const OnboardingGuide: React.FC<OnboardingGuideProps> = ({
               </div>
             </div>
           </div>
-        </div>
-
+        )}
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="max-w-3xl mx-auto">

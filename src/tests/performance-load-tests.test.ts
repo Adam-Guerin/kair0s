@@ -136,6 +136,7 @@ class LoadTester {
       stressTests: []
     };
   }
+}
 
 // Mock system for testing
 class MockTestSystem {
@@ -239,7 +240,7 @@ describe('Performance and Load Tests', () => {
       // Generate response times with known distribution
       const testTimes = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
       
-      testTimes.forEach((time, index) => {
+      testTimes.forEach((time) => {
         perfMonitor.startMeasurement('percentile_test');
         // Simulate the exact time
         vi.advanceTimersByTime(time);
@@ -254,7 +255,7 @@ describe('Performance and Load Tests', () => {
 
   describe('Concurrent Load Testing', () => {
     it('should handle concurrent requests', async () => {
-      const testFunction = async (index: number) => {
+      const testFunction = async (_index: number) => {
         return testSystem.processRequest();
       };
 
@@ -283,7 +284,7 @@ describe('Performance and Load Tests', () => {
     });
 
     it('should handle load spikes', async () => {
-      const testFunction = async (index: number) => {
+      const testFunction = async (_index: number) => {
         // Simulate variable processing time
         const delay = Math.random() * 200 + 50; // 50-250ms
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -299,7 +300,7 @@ describe('Performance and Load Tests', () => {
 
   describe('Stress Testing', () => {
     it('should handle sustained load', async () => {
-      const testFunction = async (id: string) => {
+      const testFunction = async (_id: string) => {
         return testSystem.processRequest();
       };
 

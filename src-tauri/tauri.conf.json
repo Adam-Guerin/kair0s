@@ -25,7 +25,9 @@
         "minHeight": 600
       }
     ],
-    "security": { "csp": null }
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: http://127.0.0.1:18789 http://localhost:18789; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    }
   },
   "bundle": {
     "active": true,

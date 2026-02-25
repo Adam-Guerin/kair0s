@@ -9,11 +9,12 @@
     "dev:ui": "vite",
     "dev:gateway": "cd ../openclaw && pnpm gateway:dev",
     "build": "pnpm build:ui && pnpm tauri build",
-    "build:ui": "tsc && vite build",
+    "build:ui": "tsc -p tsconfig.build.json && vite build",
     "build:gateway": "cd ../openclaw && pnpm build",
     "tauri": "tauri",
     "preview": "vite preview",
     "test": "vitest",
+    "test:integration:live-contract": "vitest run --config vitest.live.config.ts",
     "lint": "oxlint --type-aware && tsc --noEmit",
     "format": "oxfmt --write"
   },

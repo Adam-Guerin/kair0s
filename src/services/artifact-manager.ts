@@ -27,10 +27,14 @@ import {
   KPI_CATEGORIES,
   KPI_SEVERITY,
 } from '../types/business-artifacts.js';
+import {
+  createSecureStorageAdapter,
+  type SecureStorageAdapter,
+} from './storage/secure-storage.js';
 
 export interface ArtifactManagerConfig {
   storage: {
-    provider: 'local' | 'cloud' | 'hybrid';
+    provider: 'local' | 'sqlite' | 'cloud' | 'hybrid';
     retention: {
       sessions: number; // days
       artifacts: number; // days
@@ -38,6 +42,11 @@ export interface ArtifactManagerConfig {
     };
     compression: boolean;
     encryption: boolean;
+    sqlite?: {
+      dbPath: string;
+      tablePrefix: string;
+      keyAlias: string;
+    };
   };
   validation: {
     strictMode: boolean;
@@ -53,6 +62,7 @@ export interface ArtifactManagerConfig {
 
 export class ArtifactManager {
   private config: ArtifactManagerConfig;
+  private storageAdapter: SecureStorageAdapter;
   private sessions: Map<string, TaskSession> = new Map();
   private artifacts: Map<string, Artifact> = new Map();
   private kpiEvents: Map<string, KPIEvent> = new Map();
@@ -60,14 +70,19 @@ export class ArtifactManager {
   constructor(config: Partial<ArtifactManagerConfig> = {}) {
     this.config = {
       storage: {
-        provider: 'local',
+        provider: 'sqlite',
         retention: {
           sessions: 90,
           artifacts: 30,
           kpis: 180,
         },
         compression: true,
-        encryption: false,
+        encryption: true,
+        sqlite: {
+          dbPath: 'kair0s_secure.db',
+          tablePrefix: 'kair0s_',
+          keyAlias: 'kair0s_artifacts_master_key',
+        },
       },
       validation: {
         strictMode: true,
@@ -81,6 +96,8 @@ export class ArtifactManager {
       },
       ...config,
     };
+
+    this.storageAdapter = createSecureStorageAdapter(this.config.storage);
   }
 
   // ============================================================================
@@ -480,28 +497,23 @@ export class ArtifactManager {
   // ============================================================================
 
   private async persistSession(session: TaskSession): Promise<void> {
-    // TODO: Implement based on config.storage.provider
-    console.log('Persisting session:', session.id);
+    await this.storageAdapter.upsert(session.id, 'session', session);
   }
 
   private async persistArtifact(artifact: Artifact): Promise<void> {
-    // TODO: Implement based on config.storage.provider
-    console.log('Persisting artifact:', artifact.id);
+    await this.storageAdapter.upsert(artifact.id, 'artifact', artifact);
   }
 
   private async persistKPIEvent(event: KPIEvent): Promise<void> {
-    // TODO: Implement based on config.storage.provider
-    console.log('Persisting KPI event:', event.id);
+    await this.storageAdapter.upsert(event.id, 'kpi', event);
   }
 
   private async removePersistedSession(sessionId: string): Promise<void> {
-    // TODO: Implement based on config.storage.provider
-    console.log('Removing session:', sessionId);
+    await this.storageAdapter.delete(sessionId, 'session');
   }
 
   private async removePersistedArtifact(artifactId: string): Promise<void> {
-    // TODO: Implement based on config.storage.provider
-    console.log('Removing artifact:', artifactId);
+    await this.storageAdapter.delete(artifactId, 'artifact');
   }
 
   // ============================================================================
