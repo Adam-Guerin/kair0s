@@ -66,7 +66,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/kair0s.git
+git clone https://github.com/adam-guerin/kair0s.git
 cd kair0s
 
 # Install dependencies
